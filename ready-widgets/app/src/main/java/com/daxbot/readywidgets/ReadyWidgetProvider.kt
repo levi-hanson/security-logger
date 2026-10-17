@@ -13,7 +13,6 @@ import android.widget.RemoteViews
 import org.json.JSONObject
 import java.text.DateFormat
 import java.util.Date
-import kotlin.concurrent.thread
 
 /**
  * The home-screen widget: a collapsible To-dos section and a collapsible Issues section
@@ -22,59 +21,66 @@ import kotlin.concurrent.thread
 class ReadyWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
-        render(context)
-        refresh(context, goAsync())
+        refresh(context)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        when (intent.action) {
-            ACTION_TOGGLE -> {
-                val key = intent.getStringExtra(EXTRA_KEY) ?: return
-                Store(context).toggleCollapsed(key)
-                render(context)
-            }
-            ACTION_REFRESH -> refresh(context, goAsync())
-        }
+        if (intent.action == ACTION_REFRESH) refresh(context)
     }
 
     companion object {
-        private const val ACTION_TOGGLE = "com.daxbot.readywidgets.TOGGLE"
         private const val ACTION_REFRESH = "com.daxbot.readywidgets.REFRESH"
-        private const val EXTRA_KEY = "key"
+
+        /** Fill-in extras for taps on list rows; handled by [WidgetClickActivity]. */
+        const val EXTRA_TOGGLE = "toggle"
+        const val EXTRA_TODO = "todo"
 
         private const val KEY_TODOS = "todos"
         private const val KEY_ISSUES = "issues"
 
         @Volatile private var refreshing = false
 
-        /** Fetches to-dos and issues from Ready, then redraws every widget. */
-        fun refresh(context: Context, pending: PendingResult? = null) {
+        /**
+         * Asks for fresh to-dos and issues. The fetch runs as a job: a widget tap reaches the app
+         * in the background, where Android may cut off its network, but a running job has it.
+         */
+        fun refresh(context: Context) {
             val app = context.applicationContext
-            val store = Store(app)
-            if (!store.signedIn) {
+            if (!Store(app).signedIn) {
                 render(app)
-                pending?.finish()
                 return
             }
             refreshing = true
             render(app)
-            thread {
-                try {
-                    val todos = Ready.get(app, "/v1/todos")
-                    val issues = Ready.get(app, "/v1/issues")
+            RefreshJob.schedule(app)
+        }
+
+        /** Fetches to-dos and issues from Ready and redraws every widget. Blocks; called by [RefreshJob]. */
+        fun fetchNow(context: Context) {
+            val store = Store(context)
+            try {
+                if (store.signedIn) {
+                    val todos = Ready.get(context, "/v1/todos")
+                    val issues = Ready.get(context, "/v1/issues")
                     store.cachedTodos = todos.toString()
                     store.cachedIssues = issues.toString()
                     store.updatedAt = System.currentTimeMillis()
                     store.lastError = null
-                } catch (e: Exception) {
-                    store.lastError = e.message ?: e.javaClass.simpleName
-                } finally {
-                    refreshing = false
-                    render(app)
-                    pending?.finish()
                 }
+            } catch (e: Exception) {
+                store.lastError = e.message ?: e.javaClass.simpleName
+            } finally {
+                refreshing = false
+                render(context)
             }
+            Updater.checkIfDue(context)
+            render(context)
+        }
+
+        fun toggle(context: Context, key: String) {
+            Store(context).toggleCollapsed(key)
+            render(context)
         }
 
         /** Redraws every widget from what is cached; no network. */
@@ -92,16 +98,20 @@ class ReadyWidgetProvider : AppWidgetProvider() {
             views.setOnClickPendingIntent(R.id.title_area, activityIntent(context, SetupActivity::class.java, 10))
             views.setOnClickPendingIntent(R.id.btn_add_todo, activityIntent(context, AddTodoActivity::class.java, 11))
             views.setOnClickPendingIntent(R.id.btn_add_issue, activityIntent(context, AddIssueActivity::class.java, 12))
-            views.setOnClickPendingIntent(R.id.btn_refresh, broadcast(context, ACTION_REFRESH, 13, mutable = false))
+            views.setOnClickPendingIntent(R.id.btn_refresh, broadcast(context, ACTION_REFRESH, 13))
 
             views.setTextViewText(R.id.status, statusLine(context, store))
 
-            val toggle = broadcast(context, ACTION_TOGGLE, 14, mutable = true)
-            views.setPendingIntentTemplate(R.id.list, toggle)
+            // Rows fill in what was tapped; the template must be mutable for that.
+            val rowTap = PendingIntent.getActivity(
+                context, 14, Intent(context, WidgetClickActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+            )
+            views.setPendingIntentTemplate(R.id.list, rowTap)
             views.setEmptyView(R.id.list, R.id.empty)
             if (store.signedIn) {
                 views.setTextViewText(R.id.empty, if (refreshing) "Loading…" else "Nothing to show yet. Tap ↻ to refresh.")
-                views.setOnClickPendingIntent(R.id.empty, broadcast(context, ACTION_REFRESH, 15, mutable = false))
+                views.setOnClickPendingIntent(R.id.empty, broadcast(context, ACTION_REFRESH, 15))
             } else {
                 views.setTextViewText(R.id.empty, "Tap here to sign in to Ready")
                 views.setOnClickPendingIntent(R.id.empty, activityIntent(context, SetupActivity::class.java, 16))
@@ -114,6 +124,7 @@ class ReadyWidgetProvider : AppWidgetProvider() {
         private fun statusLine(context: Context, store: Store): String {
             if (!store.signedIn) return "Not signed in"
             if (refreshing) return "Refreshing…"
+            if (Updater.updateAvailable(context)) return "Update available: tap Ready"
             store.lastError?.let { return "⚠ $it" }
             if (store.updatedAt == 0L) return store.userName ?: ""
             return "Updated " + DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(store.updatedAt))
@@ -172,6 +183,7 @@ class ReadyWidgetProvider : AppWidgetProvider() {
                 val meta = listOfNotNull(todo.str("due_date")?.let { shortDate(it) }, tagKey?.let { tagCodes[it] })
                     .joinToString(" · ")
                 val row = item(context, if (done) "☑" else "☐", todo.str("title") ?: "", meta, done)
+                todo.str("uuid")?.let { row.setOnClickFillInIntent(R.id.row_root, Intent().putExtra(EXTRA_TODO, it)) }
                 if (todo.optInt("indent", 0) == 1) row.setViewPadding(R.id.row_root, dp(context, 30), dp(context, 5), dp(context, 10), dp(context, 5))
                 builder.addItem(stableId("t", todo.str("uuid") ?: "$i"), row)
             }
@@ -233,7 +245,7 @@ class ReadyWidgetProvider : AppWidgetProvider() {
             row.setTextViewText(R.id.chevron, if (collapsed) "▸" else "▾")
             row.setTextViewText(R.id.label, label)
             row.setTextViewText(R.id.count, count)
-            row.setOnClickFillInIntent(R.id.row_root, Intent().putExtra(EXTRA_KEY, key))
+            row.setOnClickFillInIntent(R.id.row_root, Intent().putExtra(EXTRA_TOGGLE, key))
             return row
         }
 
@@ -276,12 +288,9 @@ class ReadyWidgetProvider : AppWidgetProvider() {
             return PendingIntent.getActivity(context, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         }
 
-        private fun broadcast(context: Context, action: String, requestCode: Int, mutable: Boolean): PendingIntent {
+        private fun broadcast(context: Context, action: String, requestCode: Int): PendingIntent {
             val intent = Intent(context, ReadyWidgetProvider::class.java).setAction(action)
-            // The list's click template must be mutable so each row can fill in which section it toggles.
-            val flags = PendingIntent.FLAG_UPDATE_CURRENT or
-                if (mutable) PendingIntent.FLAG_MUTABLE else PendingIntent.FLAG_IMMUTABLE
-            return PendingIntent.getBroadcast(context, requestCode, intent, flags)
+            return PendingIntent.getBroadcast(context, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         }
     }
 }

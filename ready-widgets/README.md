@@ -12,6 +12,7 @@ collapsible sections, with buttons to add a to-do or raise an issue.
   the to-do untagged.
 - **+ Issue**: `POST /v1/issues` onto any list you can raise on. The app remembers the
   last list you picked.
+- Tap a to-do to change its tag: Personal, one of your roles, or none.
 - Tap a section header to collapse or expand it. Tap ↻ to refresh. Tap "Ready" to open
   settings. The widget also refreshes on its own every 30 minutes.
 
@@ -54,5 +55,14 @@ cd ready-widgets
 # → app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Builds are debug-signed by CI. Each CI runner has its own debug key, so installing a newer
-build over an older one can fail with "App not installed". Uninstall the old one first.
+## Updates
+
+Every push to `ready-widgets/` publishes a new build to the release. The app checks the
+release every few hours. When a newer build is out, the widget's status line says so.
+Open the app (tap "Ready" on the widget), tap **Install update**, and confirm Android's
+prompt.
+
+Updates only install over a build signed with the same key. CI signs with the keystore in
+the `READY_KEYSTORE_BASE64` repository secret: a base64-encoded PKCS12 keystore with alias
+`readywidgets` and password `readywidgets`. Without that secret, builds use a throwaway
+debug key and must be uninstalled and reinstalled by hand.

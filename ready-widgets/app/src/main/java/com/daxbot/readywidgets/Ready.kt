@@ -5,12 +5,15 @@ import android.net.Uri
 import android.util.Base64
 import org.json.JSONArray
 import org.json.JSONObject
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
 import java.net.URLEncoder
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.util.concurrent.TimeUnit
 
 /**
  * A small client for Ready's API. Signs in with OAuth (authorization code + PKCE, with the
@@ -152,6 +155,8 @@ object Ready {
 
     fun post(context: Context, path: String, body: JSONObject): JSONObject = call(context, "POST", path, body)
 
+    fun patch(context: Context, path: String, body: JSONObject): JSONObject = call(context, "PATCH", path, body)
+
     private fun call(context: Context, method: String, path: String, body: JSONObject?): JSONObject {
         val store = Store(context)
         val server = store.serverUrl ?: throw ApiException(401, "Not signed in; open the app to sign in")
@@ -173,6 +178,12 @@ object Ready {
 
     // ---- Plumbing ----
 
+    /** Shared HTTP client; OkHttp because Android's HttpURLConnection cannot send PATCH. */
+    val http: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
+        .build()
+
     private fun request(
         method: String,
         url: String,
@@ -180,24 +191,18 @@ object Ready {
         contentType: String? = null,
         bearer: String? = null,
     ): Pair<Int, String> {
-        val conn = URL(url).openConnection() as HttpURLConnection
-        try {
-            conn.requestMethod = method
-            conn.connectTimeout = 15_000
-            conn.readTimeout = 20_000
-            conn.setRequestProperty("Accept", "application/json")
-            if (bearer != null) conn.setRequestProperty("Authorization", "Bearer $bearer")
-            if (body != null) {
-                conn.doOutput = true
-                conn.setRequestProperty("Content-Type", contentType ?: "application/json")
-                conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-            }
-            val status = conn.responseCode
-            val stream = if (status >= 400) conn.errorStream else conn.inputStream
-            val text = stream?.bufferedReader()?.use { it.readText() } ?: ""
-            return status to text
-        } finally {
-            conn.disconnect()
+        val requestBody = when {
+            body != null -> body.toRequestBody((contentType ?: "application/json").toMediaType())
+            method == "GET" -> null
+            else -> ByteArray(0).toRequestBody()
+        }
+        val builder = Request.Builder()
+            .url(url)
+            .header("Accept", "application/json")
+            .method(method, requestBody)
+        if (bearer != null) builder.header("Authorization", "Bearer $bearer")
+        http.newCall(builder.build()).execute().use { response ->
+            return response.code to (response.body?.string() ?: "")
         }
     }
 

@@ -3,6 +3,7 @@ package com.daxbot.readywidgets
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -14,6 +15,8 @@ class SetupActivity : Activity() {
     private lateinit var status: TextView
     private lateinit var signIn: Button
     private lateinit var signOut: Button
+    private lateinit var updateStatus: TextView
+    private lateinit var installUpdate: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -22,6 +25,9 @@ class SetupActivity : Activity() {
         status = findViewById(R.id.status)
         signIn = findViewById(R.id.sign_in)
         signOut = findViewById(R.id.sign_out)
+        updateStatus = findViewById(R.id.update_status)
+        installUpdate = findViewById(R.id.install_update)
+        installUpdate.setOnClickListener { startUpdate() }
 
         Store(this).serverUrl?.let { server.setText(it) }
         signIn.setOnClickListener { startSignIn() }
@@ -35,6 +41,37 @@ class SetupActivity : Activity() {
     override fun onResume() {
         super.onResume()
         showState()
+        showUpdate()
+        if (Updater.enabled) {
+            thread {
+                try { Updater.check(this) } catch (e: Exception) { /* offline; keep what we knew */ }
+                runOnUiThread { showUpdate() }
+            }
+        }
+    }
+
+    private fun showUpdate() {
+        val version = "Version ${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})"
+        val available = Updater.updateAvailable(this)
+        installUpdate.visibility = if (available) View.VISIBLE else View.GONE
+        installUpdate.text = "Install update (build ${Updater.availableBuild(this)})"
+        updateStatus.text = version + (Updater.lastError(this)?.let { "\nLast update failed: $it" } ?: "")
+    }
+
+    private fun startUpdate() {
+        installUpdate.isEnabled = false
+        installUpdate.text = "Downloading…"
+        thread {
+            try {
+                Updater.install(this)
+            } catch (e: Exception) {
+                Updater.recordError(this, e.message ?: e.javaClass.simpleName)
+            }
+            runOnUiThread {
+                installUpdate.isEnabled = true
+                showUpdate()
+            }
+        }
     }
 
     private fun showState() {
