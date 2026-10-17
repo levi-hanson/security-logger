@@ -14,7 +14,8 @@ collapsible sections, with buttons to add a to-do or raise an issue.
   `GET /v1/forms?filter[q]=escalation&filter[status]=wip`.
 - **Inbox**: what Ready's home page shows waiting on you (`GET /v1/wips/home_view`): your
   inbox, for your role, returned drafts, shift requests and to-do notifications, plus what's
-  in flight (collapsed). Tapping an inbox item or escalation opens Ready.
+  in flight (collapsed). Tapping an inbox item or escalation opens its page in Ready
+  (`/wip/edit/{uuid}`).
 - **Delegated**: to-dos on other people's lists that you watch, including the ones you
   proposed (`GET /v1/todos/watching`), with whose they are. Tap one to open that person's
   list. **View team →** opens your team: search it, open anyone's list

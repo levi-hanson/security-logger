@@ -22,6 +22,9 @@ class WidgetClickActivity : Activity() {
         if (intent.getBooleanExtra(ReadyWidgetProvider.EXTRA_OPEN_READY, false)) {
             Store(this).serverUrl?.let { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) }
         }
+        intent.getStringExtra(ReadyWidgetProvider.EXTRA_OPEN_WIP)?.let { uuid ->
+            Store(this).serverUrl?.let { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("$it/wip/edit/$uuid"))) }
+        }
         intent.getStringExtra(ReadyWidgetProvider.EXTRA_TEAM)?.let { person ->
             val team = Intent(this, TeamActivity::class.java)
             if (person.isNotEmpty()) team.putExtra(TeamActivity.EXTRA_PERSON, person)

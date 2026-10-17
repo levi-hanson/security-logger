@@ -42,6 +42,8 @@ class ReadyWidgetProvider : AppWidgetProvider() {
         const val EXTRA_TEAM = "team"
         /** Open Ready in the browser. */
         const val EXTRA_OPEN_READY = "open_ready"
+        /** Open this WIP's page in Ready (/wip/edit/{uuid}). */
+        const val EXTRA_OPEN_WIP = "open_wip"
 
         private const val KEY_TODOS = "todos"
         private const val KEY_ISSUES = "issues"
@@ -326,7 +328,7 @@ class ReadyWidgetProvider : AppWidgetProvider() {
                 val name = (a.str("name") ?: "Escalation").removePrefix("Escalation Form").trim()
                 val owner = a.optJSONObject("owner")?.str("name")?.substringBefore(' ')
                 val row = item(context, "!", name.ifEmpty { "Escalation" }, owner ?: "", false)
-                row.setOnClickFillInIntent(R.id.row_root, Intent().putExtra(EXTRA_OPEN_READY, true))
+                row.setOnClickFillInIntent(R.id.row_root, openWip(form.str("id")))
                 builder.addItem(stableId("e", form.str("id") ?: name), row)
             }
         }
@@ -380,7 +382,7 @@ class ReadyWidgetProvider : AppWidgetProvider() {
                     val due = wip.str("due_date")?.take(10)?.let { shortDate(it) }
                     val meta = listOfNotNull(wip.str("department"), due?.let { "due $it" }).joinToString(" · ")
                     val row = item(context, "•", wip.str("save_name") ?: wip.str("name") ?: "Form", meta, false)
-                    row.setOnClickFillInIntent(R.id.row_root, Intent().putExtra(EXTRA_OPEN_READY, true))
+                    row.setOnClickFillInIntent(R.id.row_root, openWip(wip.str("uuid")))
                     builder.addItem(stableId("w", wip.str("uuid") ?: "$key$i"), row)
                 }
             }
@@ -388,6 +390,10 @@ class ReadyWidgetProvider : AppWidgetProvider() {
                 builder.addItem(stableId("m", "inbox"), message(context, "Nothing waiting on you."))
             }
         }
+
+        /** Opens the WIP's page in Ready, or Ready's home page when its id is missing. */
+        private fun openWip(uuid: String?): Intent =
+            if (uuid != null) Intent().putExtra(EXTRA_OPEN_WIP, uuid) else Intent().putExtra(EXTRA_OPEN_READY, true)
 
         /** To-dos on other people's lists that I watch, including the ones I proposed. */
         private fun addDelegated(
