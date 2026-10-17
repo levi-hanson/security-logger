@@ -76,8 +76,9 @@ class Store(context: Context) {
         get() = prefs.getString("last_issue_list", null)
         set(v) = prefs.edit().putString("last_issue_list", v).apply()
 
-    /** To-dos start open and Issues start collapsed, until you tap them. */
-    fun isCollapsed(key: String): Boolean = prefs.getBoolean("collapsed:$key", key == "issues")
+    /** To-dos start open; Issues and each issue list start collapsed, until you tap them. */
+    fun isCollapsed(key: String): Boolean =
+        prefs.getBoolean("collapsed:$key", key == "issues" || key.startsWith("list:"))
 
     fun toggleCollapsed(key: String) {
         prefs.edit().putBoolean("collapsed:$key", !isCollapsed(key)).apply()

@@ -14,8 +14,8 @@ collapsible sections, with buttons to add a to-do or raise an issue.
   last list you picked.
 - Tap a to-do or an issue to edit it: change the title, read its notes, or add one. For a
   to-do, also change its tag: Personal, one of your roles, or none.
-- Tap a section header to collapse or expand it. To-dos start open and Issues start
-  collapsed. Tap ↻ to refresh. Tap "Ready" to open
+- Tap a section header to collapse or expand it. To-dos start open; Issues and each
+  issue list start collapsed. Tap ↻ to refresh. Tap "Ready" to open
   settings. The widget also refreshes on its own every 30 minutes.
 
 Needs Android 12 or newer.
