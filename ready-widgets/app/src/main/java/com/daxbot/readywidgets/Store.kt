@@ -69,6 +69,16 @@ class Store(context: Context) {
         get() = prefs.getString("cached_watching", null)
         set(v) = prefs.edit().putString("cached_watching", v).apply()
 
+    /** My inbox: WIPs waiting on me, in flight, for my role, and to-do notifications (GET /v1/wips/home_view). */
+    var cachedInbox: String?
+        get() = prefs.getString("cached_inbox", null)
+        set(v) = prefs.edit().putString("cached_inbox", v).apply()
+
+    /** Open Escalation Form WIPs (GET /v1/forms). */
+    var cachedEscalations: String?
+        get() = prefs.getString("cached_escalations", null)
+        set(v) = prefs.edit().putString("cached_escalations", v).apply()
+
     /** Me, then everyone below me (GET /v1/todos/people). */
     var cachedPeople: String?
         get() = prefs.getString("cached_people", null)
@@ -88,7 +98,10 @@ class Store(context: Context) {
 
     /** To-dos start open; Issues, each issue list and Delegated start collapsed, until you tap them. */
     fun isCollapsed(key: String): Boolean =
-        prefs.getBoolean("collapsed:$key", key == "issues" || key == "delegated" || key.startsWith("list:"))
+        prefs.getBoolean(
+            "collapsed:$key",
+            key == "issues" || key == "delegated" || key.startsWith("list:") || key == "inbox:in_flight",
+        )
 
     fun toggleCollapsed(key: String) {
         prefs.edit().putBoolean("collapsed:$key", !isCollapsed(key)).apply()
@@ -103,6 +116,8 @@ class Store(context: Context) {
             .remove("cached_todos")
             .remove("cached_issues")
             .remove("cached_watching")
+            .remove("cached_inbox")
+            .remove("cached_escalations")
             .remove("cached_people")
             .remove("updated_at")
             .remove("last_error")

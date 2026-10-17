@@ -40,6 +40,8 @@ class ReadyWidgetProvider : AppWidgetProvider() {
         const val EXTRA_DONE_VALUE = "done_value"
         /** A person's uuid to open their list in [TeamActivity], or "" for the team list. */
         const val EXTRA_TEAM = "team"
+        /** Open Ready in the browser. */
+        const val EXTRA_OPEN_READY = "open_ready"
 
         private const val KEY_TODOS = "todos"
         private const val KEY_ISSUES = "issues"
@@ -73,8 +75,23 @@ class ReadyWidgetProvider : AppWidgetProvider() {
                     store.cachedTodos = todos.toString()
                     store.cachedIssues = issues.toString()
                     store.cachedWatching = watching.toString()
+                    // The inbox and escalations come from Ready's forms side; if one fails,
+                    // keep the to-dos and issues that did load and show the error.
+                    var partial: String? = null
+                    try {
+                        store.cachedInbox = Ready.get(context, "/v1/wips/home_view").toString()
+                    } catch (e: Exception) {
+                        partial = "Inbox: " + (e.message ?: e.javaClass.simpleName)
+                    }
+                    try {
+                        store.cachedEscalations = Ready.get(
+                            context, "/v1/forms?filter%5Bq%5D=escalation&filter%5Bstatus%5D=wip&page%5Bsize%5D=50",
+                        ).toString()
+                    } catch (e: Exception) {
+                        partial = "Escalations: " + (e.message ?: e.javaClass.simpleName)
+                    }
                     store.updatedAt = System.currentTimeMillis()
-                    store.lastError = null
+                    store.lastError = partial
                 }
             } catch (e: Exception) {
                 store.lastError = e.message ?: e.javaClass.simpleName
@@ -148,7 +165,9 @@ class ReadyWidgetProvider : AppWidgetProvider() {
             val issuesJson = store.cachedIssues?.let { JSONObject(it) }
             if (todosJson == null && issuesJson == null) return builder.build()
 
+            addEscalations(context, store, builder, store.cachedEscalations?.let { JSONObject(it) })
             addTodos(context, store, builder, todosJson)
+            addInbox(context, store, builder, store.cachedInbox?.let { JSONObject(it) })
             addIssues(context, store, builder, issuesJson)
             addDelegated(context, store, builder, store.cachedWatching?.let { JSONObject(it) })
             return builder.build()
@@ -285,6 +304,89 @@ class ReadyWidgetProvider : AppWidgetProvider() {
             }
             row.setTextViewText(R.id.meta, meta)
             return row
+        }
+
+        /**
+         * Open escalations (Escalation Form WIPs not yet archived), at the very top. Only shown
+         * when there are any, since they need attention now.
+         */
+        private fun addEscalations(context: Context, store: Store, builder: RemoteViews.RemoteCollectionItems.Builder, json: JSONObject?) {
+            val forms = json?.optJSONArray("data") ?: return
+            val open = (0 until forms.length()).map { forms.getJSONObject(it) }.filter {
+                val a = it.optJSONObject("attributes")
+                a != null && a.str("kind") == "wip" &&
+                    a.optJSONObject("form_type")?.str("name")?.contains("Escalation", ignoreCase = true) == true
+            }
+            if (open.isEmpty()) return
+            val collapsed = store.isCollapsed("escalations")
+            builder.addItem(stableId("h", "escalations"), header(context, R.layout.row_header, "escalations", "⚠ Escalations", open.size.toString(), collapsed))
+            if (collapsed) return
+            for (form in open) {
+                val a = form.getJSONObject("attributes")
+                val name = (a.str("name") ?: "Escalation").removePrefix("Escalation Form").trim()
+                val owner = a.optJSONObject("owner")?.str("name")?.substringBefore(' ')
+                val row = item(context, "!", name.ifEmpty { "Escalation" }, owner ?: "", false)
+                row.setOnClickFillInIntent(R.id.row_root, Intent().putExtra(EXTRA_OPEN_READY, true))
+                builder.addItem(stableId("e", form.str("id") ?: name), row)
+            }
+        }
+
+        /**
+         * My Ready inbox, as on Ready's home page: what's waiting on me (inbox, for my role,
+         * returned drafts, shift requests, to-do notifications), then what's in flight.
+         */
+        private fun addInbox(context: Context, store: Store, builder: RemoteViews.RemoteCollectionItems.Builder, json: JSONObject?) {
+            json ?: return
+            val wips = json.optJSONObject("wips") ?: JSONObject()
+            val buckets = listOf(
+                "inbox" to "Inbox",
+                "for_your_role" to "For your role",
+                "returned_drafts" to "Returned drafts",
+                "shift_requests" to "Shift requests",
+            )
+            val notifications = json.optJSONArray("todo_notifications")
+            val waiting = buckets.sumOf { wips.optJSONArray(it.first)?.length() ?: 0 } + (notifications?.length() ?: 0)
+
+            val collapsed = store.isCollapsed("inbox")
+            builder.addItem(stableId("h", "inbox"), header(context, R.layout.row_header, "inbox", "Inbox", waiting.toString(), collapsed))
+            if (collapsed) return
+
+            for (i in 0 until (notifications?.length() ?: 0)) {
+                val n = notifications!!.getJSONObject(i)
+                val title = n.optJSONObject("todo")?.str("title") ?: n.str("title") ?: "A to-do"
+                val what = when (n.str("kind")) {
+                    "completed" -> "done"
+                    "declined" -> "declined"
+                    "deleted" -> "deleted"
+                    else -> n.str("kind") ?: ""
+                }
+                val row = item(context, "✉", title, what, false)
+                row.setOnClickFillInIntent(R.id.row_root, Intent().putExtra(EXTRA_OPEN_READY, true))
+                builder.addItem(stableId("n", n.str("uuid") ?: "$i"), row)
+            }
+            for ((key, label) in buckets + ("in_flight" to "In flight")) {
+                val items = wips.optJSONArray(key) ?: continue
+                if (items.length() == 0) continue
+                val subKey = "inbox:$key"
+                // The main inbox bucket needs no subheading when it's the only thing waiting.
+                val showSub = !(key == "inbox" && waiting == items.length())
+                val subCollapsed = showSub && store.isCollapsed(subKey)
+                if (showSub) {
+                    builder.addItem(stableId("h", subKey), header(context, R.layout.row_sub, subKey, label, items.length().toString(), subCollapsed))
+                }
+                if (subCollapsed) continue
+                for (i in 0 until items.length()) {
+                    val wip = items.getJSONObject(i)
+                    val due = wip.str("due_date")?.take(10)?.let { shortDate(it) }
+                    val meta = listOfNotNull(wip.str("department"), due?.let { "due $it" }).joinToString(" · ")
+                    val row = item(context, "•", wip.str("save_name") ?: wip.str("name") ?: "Form", meta, false)
+                    row.setOnClickFillInIntent(R.id.row_root, Intent().putExtra(EXTRA_OPEN_READY, true))
+                    builder.addItem(stableId("w", wip.str("uuid") ?: "$key$i"), row)
+                }
+            }
+            if (waiting == 0 && (wips.optJSONArray("in_flight")?.length() ?: 0) == 0) {
+                builder.addItem(stableId("m", "inbox"), message(context, "Nothing waiting on you."))
+            }
         }
 
         /** To-dos on other people's lists that I watch, including the ones I proposed. */
