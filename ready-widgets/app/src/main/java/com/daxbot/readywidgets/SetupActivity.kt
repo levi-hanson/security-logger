@@ -7,6 +7,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
+import android.widget.Toast
 import kotlin.concurrent.thread
 
 /** Where you enter Ready's address and sign in or out. */
@@ -17,6 +18,7 @@ class SetupActivity : Activity() {
     private lateinit var signOut: Button
     private lateinit var updateStatus: TextView
     private lateinit var installUpdate: Button
+    private lateinit var checkUpdates: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,6 +30,9 @@ class SetupActivity : Activity() {
         updateStatus = findViewById(R.id.update_status)
         installUpdate = findViewById(R.id.install_update)
         installUpdate.setOnClickListener { startUpdate() }
+        checkUpdates = findViewById(R.id.check_updates)
+        checkUpdates.visibility = if (Updater.enabled) View.VISIBLE else View.GONE
+        checkUpdates.setOnClickListener { checkNow() }
 
         Store(this).serverUrl?.let { server.setText(it) }
         signIn.setOnClickListener { startSignIn() }
@@ -56,6 +61,25 @@ class SetupActivity : Activity() {
         installUpdate.visibility = if (available) View.VISIBLE else View.GONE
         installUpdate.text = "Install update (build ${Updater.availableBuild(this)})"
         updateStatus.text = version + (Updater.lastError(this)?.let { "\nLast update failed: $it" } ?: "")
+    }
+
+    private fun checkNow() {
+        checkUpdates.isEnabled = false
+        checkUpdates.text = "Checking…"
+        thread {
+            val result = try {
+                Updater.check(this)
+                if (Updater.updateAvailable(this)) "Build ${Updater.availableBuild(this)} is available." else "You're up to date."
+            } catch (e: Exception) {
+                "Couldn't check: ${e.message ?: e.javaClass.simpleName}"
+            }
+            runOnUiThread {
+                checkUpdates.isEnabled = true
+                checkUpdates.text = "Check for updates"
+                showUpdate()
+                Toast.makeText(this, result, Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun startUpdate() {
