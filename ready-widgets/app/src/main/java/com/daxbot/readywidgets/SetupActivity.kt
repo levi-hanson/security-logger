@@ -60,6 +60,12 @@ class SetupActivity : Activity() {
         thread {
             try {
                 val url = Ready.beginSignIn(this, input)
+                LoopbackReceiver.start(this) { _, error ->
+                    runOnUiThread {
+                        showState()
+                        error?.let { status.text = "Sign-in failed: ${it.message ?: it.javaClass.simpleName}" }
+                    }
+                }
                 runOnUiThread {
                     signIn.isEnabled = true
                     startActivity(Intent(Intent.ACTION_VIEW, url))

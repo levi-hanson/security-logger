@@ -18,7 +18,8 @@ import java.security.SecureRandom
  * signed-in person. Every call blocks, so run them off the main thread.
  */
 object Ready {
-    const val REDIRECT_URI = "com.daxbot.readywidgets:/oauth"
+    /** Ready only accepts https or loopback redirects, so sign-in comes back to [LoopbackReceiver]. */
+    const val REDIRECT_URI = "http://127.0.0.1:47613/oauth"
     private const val CLIENT_NAME = "Ready Widgets (Android)"
     private const val SCOPE = "write"
 
@@ -34,7 +35,8 @@ object Ready {
 
     /**
      * Discovers the server's OAuth endpoints, registers this app if needed, and returns the URL
-     * of Ready's sign-in page. The browser comes back to [REDIRECT_URI] and [finishSignIn].
+     * of Ready's sign-in page. The browser comes back to [REDIRECT_URI], where [LoopbackReceiver]
+     * hands the result to [finishSignIn].
      */
     fun beginSignIn(context: Context, serverInput: String): Uri {
         val store = Store(context)
@@ -49,7 +51,9 @@ object Ready {
         val token = meta.str("token_endpoint") ?: "$server/oauth/token"
         val register = meta.str("registration_endpoint") ?: "$server/oauth/register"
 
-        if (store.clientId == null || store.clientServer != server) {
+        // A registration is tied to the server and the redirect it was made with.
+        val registrationKey = "$server $REDIRECT_URI"
+        if (store.clientId == null || store.clientServer != registrationKey) {
             val body = JSONObject()
                 .put("client_name", CLIENT_NAME)
                 .put("redirect_uris", JSONArray().put(REDIRECT_URI))
@@ -63,7 +67,7 @@ object Ready {
             }
             store.clientId = JSONObject(text).str("client_id")
                 ?: throw IOException("Ready's registration answer had no client_id")
-            store.clientServer = server
+            store.clientServer = registrationKey
         }
 
         store.serverUrl = server

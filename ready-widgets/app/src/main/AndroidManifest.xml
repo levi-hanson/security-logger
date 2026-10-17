@@ -12,19 +12,13 @@
         <activity
             android:name=".SetupActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:theme="@style/Theme.Ready">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
-
-        <!-- Ready's sign-in page redirects back here with the authorization code. -->
-        <activity
-            android:name=".OAuthCallbackActivity"
-            android:exported="true"
-            android:launchMode="singleTask"
-            android:theme="@style/Theme.Ready.Dialog">
+            <!-- The "Back to Ready Widgets" button on the sign-in result page. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

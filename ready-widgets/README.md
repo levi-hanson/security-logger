@@ -35,9 +35,11 @@ Script tools) do:
 1. It reads `/.well-known/oauth-authorization-server` from your Ready address. If that's
    missing, it falls back to `/oauth/authorize`, `/oauth/token` and `/oauth/register`.
 2. It registers itself once as a public client named "Ready Widgets (Android)" with
-   redirect URI `com.daxbot.readywidgets:/oauth`.
-3. It opens Ready's sign-in page (authorization code + PKCE) and exchanges the returned
-   code for tokens. It refreshes the access token when it expires.
+   redirect URI `http://127.0.0.1:47613/oauth`. Ready only accepts https or loopback
+   redirects, so the app listens on that port on the phone itself while you sign in.
+3. It opens Ready's sign-in page (authorization code + PKCE). When you approve, the browser
+   returns to the app's loopback address. The app exchanges the code for tokens and shows a
+   "Back to Ready Widgets" button. It refreshes the access token when it expires.
 
 The session then appears in Ready's list of connected clients, where you can revoke it.
 Tokens are stored in the app's private storage on the phone.
