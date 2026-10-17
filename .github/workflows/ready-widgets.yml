@@ -1,0 +1,51 @@
+name: Ready Widgets APK
+
+on:
+  push:
+    paths:
+      - "ready-widgets/**"
+      - ".github/workflows/ready-widgets.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ready-widgets
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build APK
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk ready-widgets.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ready-widgets-apk
+          path: ready-widgets/ready-widgets.apk
+
+      # A rolling pre-release per branch, so the APK can be downloaded straight from a phone.
+      - name: Publish to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="ready-widgets-${GITHUB_REF_NAME//\//-}"
+          gh release delete "$tag" --cleanup-tag --yes || true
+          gh release create "$tag" ready-widgets.apk \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "Ready Widgets (${GITHUB_REF_NAME})" \
+            --notes "Built from ${GITHUB_SHA::7}. On your phone: download ready-widgets.apk, open it, and allow installing from your browser if asked."

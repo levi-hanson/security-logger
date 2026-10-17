@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ready Widgets</string>
+    <string name="widget_name">Ready: to-dos &amp; issues</string>
+    <string name="widget_description">Your Ready to-dos and issues, with quick add</string>
+</resources>
