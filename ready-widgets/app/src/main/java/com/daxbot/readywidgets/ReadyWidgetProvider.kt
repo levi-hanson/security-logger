@@ -36,6 +36,8 @@ class ReadyWidgetProvider : AppWidgetProvider() {
         const val EXTRA_TOGGLE = "toggle"
         const val EXTRA_TODO = "todo"
         const val EXTRA_ISSUE = "issue"
+        const val EXTRA_DONE = "done"
+        const val EXTRA_DONE_VALUE = "done_value"
 
         private const val KEY_TODOS = "todos"
         private const val KEY_ISSUES = "issues"
@@ -164,7 +166,7 @@ class ReadyWidgetProvider : AppWidgetProvider() {
             val todos = json?.optJSONArray("todos")
             val count = todos?.length() ?: 0
             var open = 0
-            for (i in 0 until count) if (!isDone(todos!!.getJSONObject(i))) open++
+            for (i in 0 until count) if (!Todos.isDone(todos!!.getJSONObject(i))) open++
 
             val collapsed = store.isCollapsed(KEY_TODOS)
             builder.addItem(stableId("h", KEY_TODOS), header(context, R.layout.row_header, KEY_TODOS, "To-dos", open.toString(), collapsed))
@@ -175,17 +177,32 @@ class ReadyWidgetProvider : AppWidgetProvider() {
             }
             for (i in 0 until count) {
                 val todo = todos!!.getJSONObject(i)
-                val done = isDone(todo)
+                val done = Todos.isDone(todo)
+                val pending = Todos.isPendingProposal(todo)
                 val tagKey = when {
                     todo.optBoolean("personal") -> "personal"
                     todo.str("role_uuid") != null -> "role:" + todo.str("role_uuid")
                     else -> null
                 }
-                val meta = listOfNotNull(todo.str("due_date")?.let { shortDate(it) }, tagKey?.let { tagCodes[it] })
-                    .joinToString(" · ")
-                val row = item(context, if (done) "☑" else "☐", todo.str("title") ?: "", meta, done)
-                todo.str("uuid")?.let { row.setOnClickFillInIntent(R.id.row_root, Intent().putExtra(EXTRA_TODO, it)) }
-                if (todo.optInt("indent", 0) == 1) row.setViewPadding(R.id.row_root, dp(context, 30), dp(context, 5), dp(context, 10), dp(context, 5))
+                val meta = listOfNotNull(
+                    if (pending) "proposed" else null,
+                    todo.str("due_date")?.let { shortDate(it) },
+                    tagKey?.let { tagCodes[it] },
+                ).joinToString(" · ")
+                val bullet = when {
+                    pending -> "◇"
+                    done -> "☑"
+                    else -> "☐"
+                }
+                val row = item(context, bullet, todo.str("title") ?: "", meta, done)
+                todo.str("uuid")?.let { uuid ->
+                    val openIt = Intent().putExtra(EXTRA_TODO, uuid)
+                    row.setOnClickFillInIntent(R.id.row_root, openIt)
+                    // The box marks it done; a proposal has to be accepted first, so its box opens it instead.
+                    val check = if (pending) openIt else Intent().putExtra(EXTRA_DONE, uuid).putExtra(EXTRA_DONE_VALUE, !done)
+                    row.setOnClickFillInIntent(R.id.bullet, check)
+                }
+                if (todo.optInt("indent", 0) == 1) row.setViewPadding(R.id.row_root, dp(context, 22), dp(context, 5), dp(context, 10), dp(context, 5))
                 builder.addItem(stableId("t", todo.str("uuid") ?: "$i"), row)
             }
         }
@@ -240,8 +257,6 @@ class ReadyWidgetProvider : AppWidgetProvider() {
                 }
             }
         }
-
-        private fun isDone(todo: JSONObject): Boolean = !todo.isNull("done_at") || todo.optBoolean("done")
 
         private fun header(context: Context, layout: Int, key: String, label: String, count: String, collapsed: Boolean): RemoteViews {
             val row = RemoteViews(context.packageName, layout)

@@ -6,7 +6,8 @@ import android.os.Bundle
 
 /**
  * Receives taps on the widget's list rows (an invisible activity, so a to-do tap can open
- * the edit screen): a header toggles its section, a to-do or issue opens [EditItemActivity].
+ * the edit screen): a header toggles its section, a to-do's box marks it done, and a to-do
+ * or issue opens [EditItemActivity].
  */
 class WidgetClickActivity : Activity() {
 
@@ -17,6 +18,9 @@ class WidgetClickActivity : Activity() {
         }
         intent.getStringExtra(ReadyWidgetProvider.EXTRA_TODO)?.let { open(EditItemActivity.KIND_TODO, it) }
         intent.getStringExtra(ReadyWidgetProvider.EXTRA_ISSUE)?.let { open(EditItemActivity.KIND_ISSUE, it) }
+        intent.getStringExtra(ReadyWidgetProvider.EXTRA_DONE)?.let {
+            Todos.setDoneFromWidget(this, it, intent.getBooleanExtra(ReadyWidgetProvider.EXTRA_DONE_VALUE, true))
+        }
         finish()
     }
 

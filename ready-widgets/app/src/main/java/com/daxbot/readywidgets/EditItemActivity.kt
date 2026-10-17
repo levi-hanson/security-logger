@@ -1,9 +1,11 @@
 package com.daxbot.readywidgets
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.RadioButton
 import android.widget.RadioGroup
@@ -45,6 +47,7 @@ class EditItemActivity : Activity() {
         val group = findViewById<RadioGroup>(R.id.tags)
         val notesView = findViewById<TextView>(R.id.notes)
         val newNote = findViewById<EditText>(R.id.new_note)
+        val doneBox = findViewById<CheckBox>(R.id.done)
         val error = findViewById<TextView>(R.id.error)
         val save = findViewById<Button>(R.id.save)
         findViewById<Button>(R.id.cancel).setOnClickListener { finish() }
@@ -58,6 +61,25 @@ class EditItemActivity : Activity() {
             notesView.visibility = View.GONE
         } else {
             notesView.text = existingNotes
+        }
+
+        // Done, for to-dos only. A proposal must be accepted (or declined) first.
+        val originalDone = isTodo && Todos.isDone(item)
+        val pending = isTodo && Todos.isPendingProposal(item)
+        doneBox.isChecked = originalDone
+        doneBox.visibility = if (isTodo && !pending) View.VISIBLE else View.GONE
+        if (pending) {
+            findViewById<View>(R.id.proposal).visibility = View.VISIBLE
+            findViewById<TextView>(R.id.proposal_text).text =
+                "Proposed by ${Todos.proposer(item) ?: "your supervisor"}. Accept it to work on it, or decline it."
+            findViewById<Button>(R.id.accept).setOnClickListener { answerProposal(uuid!!, "accept", "Accepted") }
+            findViewById<Button>(R.id.decline).setOnClickListener {
+                AlertDialog.Builder(this)
+                    .setMessage("Decline this to-do? It is removed from your list and the proposer is told.")
+                    .setPositiveButton("Decline") { _, _ -> answerProposal(uuid!!, "decline", "Declined") }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            }
         }
 
         // Tags, for to-dos only: Personal first, then the roles you hold, then no tag.
@@ -99,7 +121,8 @@ class EditItemActivity : Activity() {
             val note = newNote.text.toString().trim()
             val tag = group.findViewById<RadioButton>(group.checkedRadioButtonId)?.let { tags[it.tag as Int] }
             val retag = isTodo && tag != null && !isCurrent(tag, currentPersonal, currentRole)
-            if (title == originalTitle && note.isEmpty() && !retag) {
+            val doneChanged = isTodo && !pending && doneBox.isChecked != originalDone
+            if (title == originalTitle && note.isEmpty() && !retag && !doneChanged) {
                 finish()
                 return@setOnClickListener
             }
@@ -122,6 +145,7 @@ class EditItemActivity : Activity() {
                         }
                     }
                     if (note.isNotEmpty()) Ready.post(this, "$path/notes", JSONObject().put("body", note))
+                    if (doneChanged) Ready.patch(this, path, JSONObject().put("done", doneBox.isChecked))
                     ReadyWidgetProvider.refresh(this)
                     runOnUiThread {
                         Toast.makeText(this, "Saved", Toast.LENGTH_SHORT).show()
@@ -135,6 +159,30 @@ class EditItemActivity : Activity() {
                         error.visibility = View.VISIBLE
                         save.isEnabled = true
                     }
+                }
+            }
+        }
+    }
+
+    /** POST /v1/todos/{uuid}/accept or /decline, then close. */
+    private fun answerProposal(uuid: String, action: String, doneMessage: String) {
+        findViewById<Button>(R.id.accept).isEnabled = false
+        findViewById<Button>(R.id.decline).isEnabled = false
+        thread {
+            try {
+                Ready.post(this, "/v1/todos/$uuid/$action", JSONObject())
+                ReadyWidgetProvider.refresh(this)
+                runOnUiThread {
+                    Toast.makeText(this, doneMessage, Toast.LENGTH_SHORT).show()
+                    finish()
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    val error = findViewById<TextView>(R.id.error)
+                    error.text = e.message ?: e.javaClass.simpleName
+                    error.visibility = View.VISIBLE
+                    findViewById<Button>(R.id.accept).isEnabled = true
+                    findViewById<Button>(R.id.decline).isEnabled = true
                 }
             }
         }
