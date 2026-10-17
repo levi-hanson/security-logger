@@ -8,8 +8,12 @@ collapsible sections, with buttons to add a to-do or raise an issue.
   and due date.
 - **Issues**: open issues on the lists you belong to (your departments and meetings) from
   `GET /v1/issues`, grouped by list. Each list collapses too.
-- **+ To-do**: `POST /v1/todos`. **Personal** is ticked by default; untick it to leave
-  the to-do untagged.
+- **+ To-do**: for **Me** (`POST /v1/todos`), Personal by default; or pick someone below you
+  to **propose** it to them (`POST /v1/todos/propose`, with an optional note).
+- **Delegated**: to-dos on other people's lists that you watch, including the ones you
+  proposed (`GET /v1/todos/watching`), with whose they are. Tap one to open that person's
+  list. **View team →** opens your team: search it, open anyone's list
+  (`GET /v1/todos?user=`, which never includes their Personal to-dos), and propose to them.
 - **+ Issue**: `POST /v1/issues` onto any list you can raise on. The app remembers the
   last list you picked.
 - Tap a to-do's box to mark it done (tap again to undo). A to-do a supervisor proposed shows

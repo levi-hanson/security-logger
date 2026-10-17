@@ -38,9 +38,12 @@ class ReadyWidgetProvider : AppWidgetProvider() {
         const val EXTRA_ISSUE = "issue"
         const val EXTRA_DONE = "done"
         const val EXTRA_DONE_VALUE = "done_value"
+        /** A person's uuid to open their list in [TeamActivity], or "" for the team list. */
+        const val EXTRA_TEAM = "team"
 
         private const val KEY_TODOS = "todos"
         private const val KEY_ISSUES = "issues"
+        private const val KEY_DELEGATED = "delegated"
 
         @Volatile private var refreshing = false
 
@@ -66,8 +69,10 @@ class ReadyWidgetProvider : AppWidgetProvider() {
                 if (store.signedIn) {
                     val todos = Ready.get(context, "/v1/todos")
                     val issues = Ready.get(context, "/v1/issues")
+                    val watching = Ready.get(context, "/v1/todos/watching")
                     store.cachedTodos = todos.toString()
                     store.cachedIssues = issues.toString()
+                    store.cachedWatching = watching.toString()
                     store.updatedAt = System.currentTimeMillis()
                     store.lastError = null
                 }
@@ -145,6 +150,7 @@ class ReadyWidgetProvider : AppWidgetProvider() {
 
             addTodos(context, store, builder, todosJson)
             addIssues(context, store, builder, issuesJson)
+            addDelegated(context, store, builder, store.cachedWatching?.let { JSONObject(it) })
             return builder.build()
         }
 
@@ -279,6 +285,48 @@ class ReadyWidgetProvider : AppWidgetProvider() {
             }
             row.setTextViewText(R.id.meta, meta)
             return row
+        }
+
+        /** To-dos on other people's lists that I watch, including the ones I proposed. */
+        private fun addDelegated(
+            context: Context,
+            store: Store,
+            builder: RemoteViews.RemoteCollectionItems.Builder,
+            json: JSONObject?,
+        ) {
+            val todos = json?.optJSONArray("todos")
+            val count = todos?.length() ?: 0
+            var open = 0
+            for (i in 0 until count) if (!Todos.isDone(todos!!.getJSONObject(i))) open++
+
+            val collapsed = store.isCollapsed(KEY_DELEGATED)
+            builder.addItem(stableId("h", KEY_DELEGATED), header(context, R.layout.row_header, KEY_DELEGATED, "Delegated", open.toString(), collapsed))
+            if (collapsed) return
+            if (count == 0) {
+                builder.addItem(stableId("m", KEY_DELEGATED), message(context, "Nothing delegated. Propose a to-do with + To-do."))
+            }
+            for (i in 0 until count) {
+                val todo = todos!!.getJSONObject(i)
+                val done = Todos.isDone(todo)
+                val owner = todo.optJSONObject("owner")
+                val meta = listOfNotNull(
+                    owner?.str("name")?.substringBefore(' '),
+                    if (Todos.isPendingProposal(todo)) "proposed" else null,
+                    todo.str("due_date")?.let { shortDate(it) },
+                ).joinToString(" · ")
+                val bullet = when {
+                    done -> "☑"
+                    Todos.isPendingProposal(todo) -> "◇"
+                    else -> "☐"
+                }
+                val row = item(context, bullet, todo.str("title") ?: "", meta, done)
+                val person = owner?.str("uuid") ?: todo.str("owner_uuid") ?: ""
+                row.setOnClickFillInIntent(R.id.row_root, Intent().putExtra(EXTRA_TEAM, person))
+                builder.addItem(stableId("d", todo.str("uuid") ?: "$i"), row)
+            }
+            val team = message(context, "View team →")
+            team.setOnClickFillInIntent(R.id.text, Intent().putExtra(EXTRA_TEAM, ""))
+            builder.addItem(stableId("m", "team"), team)
         }
 
         private fun message(context: Context, text: String): RemoteViews {

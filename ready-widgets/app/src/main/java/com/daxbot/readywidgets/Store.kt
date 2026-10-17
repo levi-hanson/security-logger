@@ -64,6 +64,16 @@ class Store(context: Context) {
         get() = prefs.getString("cached_issues", null)
         set(v) = prefs.edit().putString("cached_issues", v).apply()
 
+    /** Other people's to-dos I watch, including the ones I proposed (GET /v1/todos/watching). */
+    var cachedWatching: String?
+        get() = prefs.getString("cached_watching", null)
+        set(v) = prefs.edit().putString("cached_watching", v).apply()
+
+    /** Me, then everyone below me (GET /v1/todos/people). */
+    var cachedPeople: String?
+        get() = prefs.getString("cached_people", null)
+        set(v) = prefs.edit().putString("cached_people", v).apply()
+
     var updatedAt: Long
         get() = prefs.getLong("updated_at", 0L)
         set(v) = prefs.edit().putLong("updated_at", v).apply()
@@ -76,9 +86,9 @@ class Store(context: Context) {
         get() = prefs.getString("last_issue_list", null)
         set(v) = prefs.edit().putString("last_issue_list", v).apply()
 
-    /** To-dos start open; Issues and each issue list start collapsed, until you tap them. */
+    /** To-dos start open; Issues, each issue list and Delegated start collapsed, until you tap them. */
     fun isCollapsed(key: String): Boolean =
-        prefs.getBoolean("collapsed:$key", key == "issues" || key.startsWith("list:"))
+        prefs.getBoolean("collapsed:$key", key == "issues" || key == "delegated" || key.startsWith("list:"))
 
     fun toggleCollapsed(key: String) {
         prefs.edit().putBoolean("collapsed:$key", !isCollapsed(key)).apply()
@@ -92,6 +102,8 @@ class Store(context: Context) {
             .remove("user_name")
             .remove("cached_todos")
             .remove("cached_issues")
+            .remove("cached_watching")
+            .remove("cached_people")
             .remove("updated_at")
             .remove("last_error")
             .apply()

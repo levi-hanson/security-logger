@@ -5,6 +5,17 @@
     android:orientation="vertical"
     android:padding="20dp">
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="For"
+        android:textSize="12sp" />
+
+    <Spinner
+        android:id="@+id/for_person"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
     <EditText
         android:id="@+id/title"
         android:layout_width="match_parent"
@@ -13,6 +24,16 @@
         android:imeOptions="actionDone"
         android:inputType="textCapSentences"
         android:maxLength="500" />
+
+    <EditText
+        android:id="@+id/note"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Note for them (optional)"
+        android:inputType="textCapSentences|textMultiLine"
+        android:maxLength="10000"
+        android:maxLines="5"
+        android:visibility="gone" />
 
     <CheckBox
         android:id="@+id/personal"

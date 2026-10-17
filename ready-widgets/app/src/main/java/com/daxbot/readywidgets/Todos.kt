@@ -25,6 +25,7 @@ object Todos {
     /** Who proposed it, when Ready says. */
     fun proposer(todo: JSONObject): String? {
         val proposed = todo.optJSONObject("proposed") ?: return null
+        proposed.str("by_name")?.let { return it }
         for (key in listOf("by", "proposed_by", "proposer")) {
             proposed.optJSONObject(key)?.str("name")?.let { return it }
         }

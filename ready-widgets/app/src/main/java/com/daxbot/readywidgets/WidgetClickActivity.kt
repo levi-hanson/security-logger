@@ -18,6 +18,11 @@ class WidgetClickActivity : Activity() {
         }
         intent.getStringExtra(ReadyWidgetProvider.EXTRA_TODO)?.let { open(EditItemActivity.KIND_TODO, it) }
         intent.getStringExtra(ReadyWidgetProvider.EXTRA_ISSUE)?.let { open(EditItemActivity.KIND_ISSUE, it) }
+        intent.getStringExtra(ReadyWidgetProvider.EXTRA_TEAM)?.let { person ->
+            val team = Intent(this, TeamActivity::class.java)
+            if (person.isNotEmpty()) team.putExtra(TeamActivity.EXTRA_PERSON, person)
+            startActivity(team)
+        }
         intent.getStringExtra(ReadyWidgetProvider.EXTRA_DONE)?.let {
             Todos.setDoneFromWidget(this, it, intent.getBooleanExtra(ReadyWidgetProvider.EXTRA_DONE_VALUE, true))
         }

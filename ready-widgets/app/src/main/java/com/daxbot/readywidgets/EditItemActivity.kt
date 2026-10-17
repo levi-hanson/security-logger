@@ -67,11 +67,13 @@ class EditItemActivity : Activity() {
         val originalDone = isTodo && Todos.isDone(item)
         val pending = isTodo && Todos.isPendingProposal(item)
         doneBox.isChecked = originalDone
-        doneBox.visibility = if (isTodo && !pending) View.VISIBLE else View.GONE
+        // Ready doesn't say whether a proposal was accepted yet, so Done stays offered;
+        // if it wasn't, Ready refuses and the error shows here.
+        doneBox.visibility = if (isTodo) View.VISIBLE else View.GONE
         if (pending) {
             findViewById<View>(R.id.proposal).visibility = View.VISIBLE
             findViewById<TextView>(R.id.proposal_text).text =
-                "Proposed by ${Todos.proposer(item) ?: "your supervisor"}. Accept it to work on it, or decline it."
+                "Proposed by ${Todos.proposer(item) ?: "your supervisor"}. If you haven't yet, accept it to work on it, or decline it."
             findViewById<Button>(R.id.accept).setOnClickListener { answerProposal(uuid!!, "accept", "Accepted") }
             findViewById<Button>(R.id.decline).setOnClickListener {
                 AlertDialog.Builder(this)
@@ -121,7 +123,7 @@ class EditItemActivity : Activity() {
             val note = newNote.text.toString().trim()
             val tag = group.findViewById<RadioButton>(group.checkedRadioButtonId)?.let { tags[it.tag as Int] }
             val retag = isTodo && tag != null && !isCurrent(tag, currentPersonal, currentRole)
-            val doneChanged = isTodo && !pending && doneBox.isChecked != originalDone
+            val doneChanged = isTodo && doneBox.isChecked != originalDone
             if (title == originalTitle && note.isEmpty() && !retag && !doneChanged) {
                 finish()
                 return@setOnClickListener
