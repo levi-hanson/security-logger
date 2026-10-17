@@ -37,7 +37,10 @@ object LoopbackReceiver {
                 // Timed out waiting, or stopped for a newer sign-in.
             } finally {
                 socket.close()
-                if (server === socket) server = null
+                if (server === socket) {
+                    server = null
+                    SignInService.stop(app)
+                }
             }
         }
     }

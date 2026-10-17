@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Only while signing in; see SignInService. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <application
         android:allowBackup="false"
@@ -42,6 +45,11 @@
             android:taskAffinity=""
             android:theme="@style/Theme.Ready.Dialog"
             android:windowSoftInputMode="stateVisible" />
+
+        <service
+            android:name=".SignInService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
         <receiver
             android:name=".ReadyWidgetProvider"

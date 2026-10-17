@@ -68,6 +68,7 @@ class SetupActivity : Activity() {
                 }
                 runOnUiThread {
                     signIn.isEnabled = true
+                    SignInService.start(this)
                     startActivity(Intent(Intent.ACTION_VIEW, url))
                 }
             } catch (e: Exception) {
