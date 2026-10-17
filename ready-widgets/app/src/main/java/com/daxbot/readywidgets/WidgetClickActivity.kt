@@ -6,7 +6,7 @@ import android.os.Bundle
 
 /**
  * Receives taps on the widget's list rows (an invisible activity, so a to-do tap can open
- * the tag picker): a header toggles its section, a to-do opens [TodoTagActivity].
+ * the edit screen): a header toggles its section, a to-do or issue opens [EditItemActivity].
  */
 class WidgetClickActivity : Activity() {
 
@@ -15,9 +15,16 @@ class WidgetClickActivity : Activity() {
         intent.getStringExtra(ReadyWidgetProvider.EXTRA_TOGGLE)?.let {
             ReadyWidgetProvider.toggle(this, it)
         }
-        intent.getStringExtra(ReadyWidgetProvider.EXTRA_TODO)?.let {
-            startActivity(Intent(this, TodoTagActivity::class.java).putExtra(TodoTagActivity.EXTRA_UUID, it))
-        }
+        intent.getStringExtra(ReadyWidgetProvider.EXTRA_TODO)?.let { open(EditItemActivity.KIND_TODO, it) }
+        intent.getStringExtra(ReadyWidgetProvider.EXTRA_ISSUE)?.let { open(EditItemActivity.KIND_ISSUE, it) }
         finish()
+    }
+
+    private fun open(kind: String, uuid: String) {
+        startActivity(
+            Intent(this, EditItemActivity::class.java)
+                .putExtra(EditItemActivity.EXTRA_KIND, kind)
+                .putExtra(EditItemActivity.EXTRA_UUID, uuid),
+        )
     }
 }

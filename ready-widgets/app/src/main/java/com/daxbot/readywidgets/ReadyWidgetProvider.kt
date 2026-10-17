@@ -35,6 +35,7 @@ class ReadyWidgetProvider : AppWidgetProvider() {
         /** Fill-in extras for taps on list rows; handled by [WidgetClickActivity]. */
         const val EXTRA_TOGGLE = "toggle"
         const val EXTRA_TODO = "todo"
+        const val EXTRA_ISSUE = "issue"
 
         private const val KEY_TODOS = "todos"
         private const val KEY_ISSUES = "issues"
@@ -233,7 +234,9 @@ class ReadyWidgetProvider : AppWidgetProvider() {
                         notes > 0 -> "$notes note" + (if (notes == 1) "" else "s")
                         else -> ""
                     }
-                    builder.addItem(stableId("i", issue.str("uuid") ?: issue.toString()), item(context, "•", issue.str("title") ?: "", meta, false))
+                    val row = item(context, "•", issue.str("title") ?: "", meta, false)
+                    issue.str("uuid")?.let { row.setOnClickFillInIntent(R.id.row_root, Intent().putExtra(EXTRA_ISSUE, it)) }
+                    builder.addItem(stableId("i", issue.str("uuid") ?: issue.toString()), row)
                 }
             }
         }
