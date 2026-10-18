@@ -22,8 +22,11 @@ collapsible sections, with buttons to add a to-do or raise an issue.
   (`GET /v1/todos?user=`, which never includes their Personal to-dos), and propose to them.
 - **+ Issue**: `POST /v1/issues` onto any list you can raise on. The app remembers the
   last list you picked.
-- Tap a to-do's box to mark it done (tap again to undo). A to-do a supervisor proposed shows
-  ◇ instead; tap it to accept or decline it, since Ready only lets you complete it once accepted.
+- Tap a to-do's box to mark it done; it moves to a collapsed **Done** group (Ready keeps
+  done to-dos until they're archived). Untick it there to undo, or tap **Clear done** to
+  archive them all in Ready (`POST /v1/todos/archive_done`).
+- A to-do a supervisor proposed shows ◇ instead of a box; tap it to accept or decline it,
+  since Ready only lets you complete it once accepted.
 - Tap a to-do or an issue to edit it: change the title, read its notes, or add one. For a
   to-do, also change its tag: Personal, one of your roles, or none.
 - Tap a section header to collapse or expand it. To-dos start open; Issues and each

@@ -51,6 +51,26 @@ object Todos {
         RefreshJob.scheduleDone(context, uuid, done)
     }
 
+    /** Clears done to-dos: drops them from the cached list at once, then archives them in Ready from [RefreshJob]. */
+    fun archiveDoneFromWidget(context: Context) {
+        val store = Store(context)
+        store.cachedTodos?.let { cached ->
+            val json = JSONObject(cached)
+            val todos = json.optJSONArray("todos")
+            if (todos != null) {
+                val kept = org.json.JSONArray()
+                for (i in 0 until todos.length()) {
+                    val todo = todos.getJSONObject(i)
+                    if (!isDone(todo)) kept.put(todo)
+                }
+                json.put("todos", kept)
+                store.cachedTodos = json.toString()
+            }
+        }
+        ReadyWidgetProvider.render(context)
+        RefreshJob.scheduleArchiveDone(context)
+    }
+
     private fun nowIso(): String {
         val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
         format.timeZone = TimeZone.getTimeZone("UTC")

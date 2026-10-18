@@ -38,6 +38,8 @@ class ReadyWidgetProvider : AppWidgetProvider() {
         const val EXTRA_ISSUE = "issue"
         const val EXTRA_DONE = "done"
         const val EXTRA_DONE_VALUE = "done_value"
+        /** Archive every done to-do (POST /v1/todos/archive_done). */
+        const val EXTRA_ARCHIVE_DONE = "archive_done"
         /** A person's uuid to open their list in [TeamActivity], or "" for the team list. */
         const val EXTRA_TEAM = "team"
         /** Open Ready in the browser. */
@@ -48,6 +50,7 @@ class ReadyWidgetProvider : AppWidgetProvider() {
         private const val KEY_TODOS = "todos"
         private const val KEY_ISSUES = "issues"
         private const val KEY_DELEGATED = "delegated"
+        private const val KEY_TODOS_DONE = "todos:done"
 
         @Volatile private var refreshing = false
 
@@ -202,8 +205,7 @@ class ReadyWidgetProvider : AppWidgetProvider() {
                 builder.addItem(stableId("m", KEY_TODOS), message(context, "No to-dos. Tap + To-do to add one."))
                 return
             }
-            for (i in 0 until count) {
-                val todo = todos!!.getJSONObject(i)
+            fun addRow(todo: JSONObject, i: Int) {
                 val done = Todos.isDone(todo)
                 val pending = Todos.isPendingProposal(todo)
                 val tagKey = when {
@@ -232,6 +234,22 @@ class ReadyWidgetProvider : AppWidgetProvider() {
                 if (todo.optInt("indent", 0) == 1) row.setViewPadding(R.id.row_root, dp(context, 22), dp(context, 5), dp(context, 10), dp(context, 5))
                 builder.addItem(stableId("t", todo.str("uuid") ?: "$i"), row)
             }
+
+            // Ready keeps done to-dos on the list until they're archived, so they move to a
+            // collapsed Done group here, where they can be unticked or cleared for good.
+            val all = (0 until count).map { todos!!.getJSONObject(it) }
+            val doneOnes = all.filter { Todos.isDone(it) }
+            all.forEachIndexed { i, todo -> if (!Todos.isDone(todo)) addRow(todo, i) }
+            if (open == 0) builder.addItem(stableId("m", "alldone"), message(context, "All done."))
+            if (doneOnes.isEmpty()) return
+
+            val doneCollapsed = store.isCollapsed(KEY_TODOS_DONE)
+            builder.addItem(stableId("h", KEY_TODOS_DONE), header(context, R.layout.row_sub, KEY_TODOS_DONE, "Done", doneOnes.size.toString(), doneCollapsed))
+            if (doneCollapsed) return
+            doneOnes.forEachIndexed { i, todo -> addRow(todo, count + i) }
+            val clear = message(context, "Clear done →")
+            clear.setOnClickFillInIntent(R.id.text, Intent().putExtra(EXTRA_ARCHIVE_DONE, true))
+            builder.addItem(stableId("m", "cleardone"), clear)
         }
 
         private fun addIssues(

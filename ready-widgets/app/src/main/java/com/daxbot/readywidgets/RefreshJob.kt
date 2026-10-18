@@ -20,7 +20,15 @@ class RefreshJob : JobService() {
     override fun onStartJob(params: JobParameters): Boolean {
         val doneUuid = params.extras.getString(EXTRA_DONE_UUID)
         val done = params.extras.getBoolean(EXTRA_DONE_VALUE, true)
+        val archiveDone = params.extras.getBoolean(EXTRA_ARCHIVE_DONE, false)
         thread {
+            if (archiveDone) {
+                try {
+                    Ready.post(applicationContext, "/v1/todos/archive_done", JSONObject())
+                } catch (e: Exception) {
+                    Store(applicationContext).lastError = e.message ?: e.javaClass.simpleName
+                }
+            }
             if (doneUuid != null) {
                 try {
                     Ready.patch(applicationContext, "/v1/todos/$doneUuid", JSONObject().put("done", done))
@@ -40,6 +48,8 @@ class RefreshJob : JobService() {
         private const val REFRESH_JOB_ID = 1
         private const val EXTRA_DONE_UUID = "done_uuid"
         private const val EXTRA_DONE_VALUE = "done_value"
+        private const val EXTRA_ARCHIVE_DONE = "archive_done"
+        private const val ARCHIVE_JOB_ID = 2
 
         fun schedule(context: Context) {
             schedule(context, REFRESH_JOB_ID, PersistableBundle())
@@ -51,6 +61,12 @@ class RefreshJob : JobService() {
             extras.putString(EXTRA_DONE_UUID, uuid)
             extras.putBoolean(EXTRA_DONE_VALUE, done)
             schedule(context, 1000 + (uuid.hashCode() and 0xffff), extras)
+        }
+
+        fun scheduleArchiveDone(context: Context) {
+            val extras = PersistableBundle()
+            extras.putBoolean(EXTRA_ARCHIVE_DONE, true)
+            schedule(context, ARCHIVE_JOB_ID, extras)
         }
 
         private fun schedule(context: Context, jobId: Int, extras: PersistableBundle) {

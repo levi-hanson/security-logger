@@ -30,6 +30,7 @@ class WidgetClickActivity : Activity() {
             if (person.isNotEmpty()) team.putExtra(TeamActivity.EXTRA_PERSON, person)
             startActivity(team)
         }
+        if (intent.getBooleanExtra(ReadyWidgetProvider.EXTRA_ARCHIVE_DONE, false)) Todos.archiveDoneFromWidget(this)
         intent.getStringExtra(ReadyWidgetProvider.EXTRA_DONE)?.let {
             Todos.setDoneFromWidget(this, it, intent.getBooleanExtra(ReadyWidgetProvider.EXTRA_DONE_VALUE, true))
         }
