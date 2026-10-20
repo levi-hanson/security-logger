@@ -2,6 +2,7 @@ package com.daxbot.readywidgets
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
@@ -70,6 +71,14 @@ class EditItemActivity : Activity() {
         // Ready doesn't say whether a proposal was accepted yet, so Done stays offered;
         // if it wasn't, Ready refuses and the error shows here.
         doneBox.visibility = if (isTodo) View.VISIBLE else View.GONE
+        if (!isTodo) {
+            val close = findViewById<Button>(R.id.close_issue)
+            close.visibility = View.VISIBLE
+            close.setOnClickListener {
+                startActivity(Intent(this, CloseIssueActivity::class.java).putExtra(CloseIssueActivity.EXTRA_UUID, uuid))
+                finish()
+            }
+        }
         if (pending) {
             findViewById<View>(R.id.proposal).visibility = View.VISIBLE
             findViewById<TextView>(R.id.proposal_text).text =

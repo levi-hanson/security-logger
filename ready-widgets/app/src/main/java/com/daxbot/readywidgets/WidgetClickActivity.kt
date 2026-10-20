@@ -19,6 +19,9 @@ class WidgetClickActivity : Activity() {
         }
         intent.getStringExtra(ReadyWidgetProvider.EXTRA_TODO)?.let { open(EditItemActivity.KIND_TODO, it) }
         intent.getStringExtra(ReadyWidgetProvider.EXTRA_ISSUE)?.let { open(EditItemActivity.KIND_ISSUE, it) }
+        intent.getStringExtra(ReadyWidgetProvider.EXTRA_CLOSE_ISSUE)?.let {
+            startActivity(Intent(this, CloseIssueActivity::class.java).putExtra(CloseIssueActivity.EXTRA_UUID, it))
+        }
         if (intent.getBooleanExtra(ReadyWidgetProvider.EXTRA_OPEN_READY, false)) {
             Store(this).serverUrl?.let { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(it))) }
         }

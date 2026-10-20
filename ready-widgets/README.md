@@ -27,6 +27,10 @@ collapsible sections, with buttons to add a to-do or raise an issue.
   archive them all in Ready (`POST /v1/todos/archive_done`).
 - A to-do a supervisor proposed shows ◇ instead of a box; tap it to accept or decline it,
   since Ready only lets you complete it once accepted.
+- Tap an issue's ○ to close it, Ready's way: **resolve** it (the root issue plus at least one
+  solution to-do, each on your list or someone's on that list; `POST /v1/issues/{uuid}/resolve`)
+  or **discard** it (a duplicate, or with a reason; `POST /v1/issues/{uuid}/discard`). Ready lets
+  you undo either for 5 minutes on its Issues page.
 - Tap a to-do or an issue to edit it: change the title, read its notes, or add one. For a
   to-do, also change its tag: Personal, one of your roles, or none.
 - Tap a section header to collapse or expand it. To-dos start open; Issues and each

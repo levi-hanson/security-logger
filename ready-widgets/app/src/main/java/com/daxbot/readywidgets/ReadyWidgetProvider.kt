@@ -36,6 +36,8 @@ class ReadyWidgetProvider : AppWidgetProvider() {
         const val EXTRA_TOGGLE = "toggle"
         const val EXTRA_TODO = "todo"
         const val EXTRA_ISSUE = "issue"
+        /** Open [CloseIssueActivity] for this issue. */
+        const val EXTRA_CLOSE_ISSUE = "close_issue"
         const val EXTRA_DONE = "done"
         const val EXTRA_DONE_VALUE = "done_value"
         /** Archive every done to-do (POST /v1/todos/archive_done). */
@@ -296,8 +298,12 @@ class ReadyWidgetProvider : AppWidgetProvider() {
                         notes > 0 -> "$notes note" + (if (notes == 1) "" else "s")
                         else -> ""
                     }
-                    val row = item(context, "•", issue.str("title") ?: "", meta, false)
-                    issue.str("uuid")?.let { row.setOnClickFillInIntent(R.id.row_root, Intent().putExtra(EXTRA_ISSUE, it)) }
+                    val row = item(context, "○", issue.str("title") ?: "", meta, false)
+                    issue.str("uuid")?.let {
+                        row.setOnClickFillInIntent(R.id.row_root, Intent().putExtra(EXTRA_ISSUE, it))
+                        // The circle closes it: resolve or discard.
+                        row.setOnClickFillInIntent(R.id.bullet, Intent().putExtra(EXTRA_CLOSE_ISSUE, it))
+                    }
                     builder.addItem(stableId("i", issue.str("uuid") ?: issue.toString()), row)
                 }
             }

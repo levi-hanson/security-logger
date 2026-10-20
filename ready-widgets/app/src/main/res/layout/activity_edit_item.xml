@@ -65,6 +65,14 @@
                 </LinearLayout>
             </LinearLayout>
 
+            <Button
+                android:id="@+id/close_issue"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Close issue…"
+                android:visibility="gone" />
+
             <CheckBox
                 android:id="@+id/done"
                 android:layout_width="wrap_content"
