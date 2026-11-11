@@ -101,7 +101,7 @@ class Store(context: Context) {
         prefs.getBoolean(
             "collapsed:$key",
             key == "issues" || key == "delegated" || key.startsWith("list:") || key == "inbox:in_flight" ||
-                key == "todos:done",
+                key == "todos:done" || (key.startsWith("todos:day:") && key != "todos:day:today"),
         )
 
     fun toggleCollapsed(key: String) {

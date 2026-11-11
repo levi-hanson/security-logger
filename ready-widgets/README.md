@@ -3,7 +3,11 @@
 A home-screen widget for Ready that shows **your to-dos** and **your issues** in two
 collapsible sections, with buttons to add a to-do or raise an issue.
 
-- **To-dos**: your active list from `GET /v1/todos`, in your order. Done ones are struck
+- **To-dos**: your active list from `GET /v1/todos`, grouped by Ready's planned day:
+  **Today** (open), each coming day, **Later**, then each project's unscheduled to-dos (all
+  collapsed). The header counts today's. Move a to-do with the **Day** picker on its edit
+  screen (`PATCH planned_date`, or `unscheduled` to send it back to its project), and pick
+  **When** while adding one. Within a group they keep your order. Done ones are struck
   through, and each shows its tag code (`P` for Personal, `OM` for Operations Manager, …)
   and due date.
 - **Issues**: open issues on the lists you belong to (your departments and meetings) from

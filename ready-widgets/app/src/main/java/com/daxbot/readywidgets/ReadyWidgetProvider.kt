@@ -197,11 +197,19 @@ class ReadyWidgetProvider : AppWidgetProvider() {
 
             val todos = json?.optJSONArray("todos")
             val count = todos?.length() ?: 0
+            val today = Todos.today(json)
             var open = 0
-            for (i in 0 until count) if (!Todos.isDone(todos!!.getJSONObject(i))) open++
+            var openToday = 0
+            for (i in 0 until count) {
+                val todo = todos!!.getJSONObject(i)
+                if (Todos.isDone(todo)) continue
+                open++
+                if (Todos.groupOf(todo, today) == "today") openToday++
+            }
 
+            // The count is what's on today; the rest wait in their day, Later or their project.
             val collapsed = store.isCollapsed(KEY_TODOS)
-            builder.addItem(stableId("h", KEY_TODOS), header(context, R.layout.row_header, KEY_TODOS, "To-dos", open.toString(), collapsed))
+            builder.addItem(stableId("h", KEY_TODOS), header(context, R.layout.row_header, KEY_TODOS, "To-dos", openToday.toString(), collapsed))
             if (collapsed) return
             if (count == 0) {
                 builder.addItem(stableId("m", KEY_TODOS), message(context, "No to-dos. Tap + To-do to add one."))
@@ -241,7 +249,38 @@ class ReadyWidgetProvider : AppWidgetProvider() {
             // collapsed Done group here, where they can be unticked or cleared for good.
             val all = (0 until count).map { todos!!.getJSONObject(it) }
             val doneOnes = all.filter { Todos.isDone(it) }
-            all.forEachIndexed { i, todo -> if (!Todos.isDone(todo)) addRow(todo, i) }
+
+            // Open to-dos by day: Today, the coming days in order, Later, then each project's
+            // unscheduled ones. Within a group they keep Ready's order.
+            val groups = LinkedHashMap<String, MutableList<Pair<Int, JSONObject>>>()
+            all.forEachIndexed { i, todo ->
+                if (!Todos.isDone(todo)) groups.getOrPut(Todos.groupOf(todo, today)) { ArrayList() }.add(i to todo)
+            }
+            fun rank(key: String) = when {
+                key == "today" -> "0"
+                key == "later" -> "2"
+                key.startsWith("project:") -> "3"
+                else -> "1$key"
+            }
+            val ordered = groups.keys.sortedBy { rank(it) }
+            if (open > 0 && "today" !in groups) builder.addItem(stableId("m", "todayclear"), message(context, "Nothing planned for today."))
+            for (key in ordered) {
+                val members = groups.getValue(key)
+                // Today needs no heading when it's the only group.
+                if (!(key == "today" && ordered.size == 1)) {
+                    val label = when {
+                        key == "today" -> "Today"
+                        key == "later" -> "Later"
+                        key.startsWith("project:") -> members.first().second.optJSONObject("project")?.str("name") ?: "Project"
+                        else -> Todos.dayLabel(key, today)
+                    }
+                    val groupKey = "todos:day:$key"
+                    val groupCollapsed = store.isCollapsed(groupKey)
+                    builder.addItem(stableId("h", groupKey), header(context, R.layout.row_sub, groupKey, label, members.size.toString(), groupCollapsed))
+                    if (groupCollapsed) continue
+                }
+                members.forEach { (i, todo) -> addRow(todo, i) }
+            }
             if (open == 0) builder.addItem(stableId("m", "alldone"), message(context, "All done."))
             if (doneOnes.isEmpty()) return
 

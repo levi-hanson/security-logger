@@ -71,6 +71,43 @@ object Todos {
         RefreshJob.scheduleArchiveDone(context)
     }
 
+    // ---- Days ----
+    // Ready plans each to-do for a day (planned_date: today to six days out; a past day reads as
+    // today) or for Later (null). A project's to-do can instead be unscheduled, waiting under
+    // its project.
+
+    /** A choice of day: a date (YYYY-MM-DD), Later (date null), or back to its project. */
+    data class Day(val label: String, val date: String?, val unscheduled: Boolean = false) {
+        override fun toString() = label
+    }
+
+    /** Ready's "today" for the list (org-local), else this phone's date. */
+    fun today(list: JSONObject?): String = list?.str("today") ?: java.time.LocalDate.now().toString()
+
+    /** Which group a to-do sits in: "today", a future date, "later", or "project:<uuid>". */
+    fun groupOf(todo: JSONObject, today: String): String {
+        if (todo.optBoolean("unscheduled")) return "project:" + (todo.str("project_uuid") ?: "")
+        val day = todo.str("planned_date") ?: return "later"
+        return if (day <= today) "today" else day
+    }
+
+    /** "Today", "Tomorrow", else "Fri Nov 13". */
+    fun dayLabel(date: String, today: String): String {
+        val d = java.time.LocalDate.parse(date)
+        val t = java.time.LocalDate.parse(today)
+        return when {
+            !d.isAfter(t) -> "Today"
+            d == t.plusDays(1) -> "Tomorrow"
+            else -> d.format(java.time.format.DateTimeFormatter.ofPattern("EEE MMM d", Locale.US))
+        }
+    }
+
+    /** The days a to-do can be planned for: today and the next six, then Later. */
+    fun dayChoices(today: String): List<Day> {
+        val t = java.time.LocalDate.parse(today)
+        return (0..6).map { val d = t.plusDays(it.toLong()).toString(); Day(dayLabel(d, today), d) } + Day("Later", null)
+    }
+
     private fun nowIso(): String {
         val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
         format.timeZone = TimeZone.getTimeZone("UTC")

@@ -31,6 +31,9 @@ class AddTodoActivity : Activity() {
         val forSpinner = findViewById<Spinner>(R.id.for_person)
         val personal = findViewById<CheckBox>(R.id.personal)
         val note = findViewById<EditText>(R.id.note)
+        val whenSpinner = findViewById<Spinner>(R.id.plan_day)
+        val days = Todos.dayChoices(Todos.today(Store(this).cachedTodos?.let { JSONObject(it) }))
+        whenSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, days)
         val error = findViewById<TextView>(R.id.error)
         val save = findViewById<Button>(R.id.save)
         findViewById<Button>(R.id.cancel).setOnClickListener { finish() }
@@ -46,6 +49,9 @@ class AddTodoActivity : Activity() {
         fun forMe(): Boolean = forSpinner.selectedItemPosition <= 0
         fun updateForChoice() {
             personal.visibility = if (forMe()) View.VISIBLE else View.GONE
+            // Proposals land on the other person's list; they plan the day.
+            whenSpinner.visibility = if (forMe()) View.VISIBLE else View.GONE
+            findViewById<View>(R.id.when_label).visibility = if (forMe()) View.VISIBLE else View.GONE
             note.visibility = if (forMe()) View.GONE else View.VISIBLE
             save.text = if (forMe()) "Add to-do" else "Propose"
             setTitle(if (forMe()) "New to-do" else "Propose a to-do")
@@ -88,6 +94,10 @@ class AddTodoActivity : Activity() {
                     if (target == null) {
                         val body = JSONObject().put("title", text)
                         if (personal.isChecked) body.put("personal", true)
+                        // Today is Ready's default; Later is null; another day is its date.
+                        days.getOrNull(whenSpinner.selectedItemPosition)?.let { day ->
+                            if (whenSpinner.selectedItemPosition > 0) body.put("planned_date", day.date ?: JSONObject.NULL)
+                        }
                         Ready.post(this, "/v1/todos", body)
                     } else {
                         val body = JSONObject().put("owner_uuid", target.uuid).put("title", text)

@@ -5,11 +5,13 @@ import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.RadioButton
 import android.widget.RadioGroup
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import org.json.JSONObject
@@ -71,6 +73,27 @@ class EditItemActivity : Activity() {
         // Ready doesn't say whether a proposal was accepted yet, so Done stays offered;
         // if it wasn't, Ready refuses and the error shows here.
         doneBox.visibility = if (isTodo) View.VISIBLE else View.GONE
+
+        // Day, for to-dos: today, one of the next six days, Later, or back to its project.
+        val daySpinner = findViewById<Spinner>(R.id.day)
+        val today = Todos.today(store.cachedTodos?.let { JSONObject(it) })
+        val days = ArrayList(Todos.dayChoices(today))
+        if (isTodo && item.str("project_uuid") != null) {
+            val project = item.optJSONObject("project")?.str("name") ?: "its project"
+            days.add(Todos.Day("Unscheduled, under $project", null, unscheduled = true))
+        }
+        val originalDay = when (val group = Todos.groupOf(item, today)) {
+            "today" -> days.indexOfFirst { it.date == today }
+            "later" -> days.indexOfFirst { it.date == null && !it.unscheduled }
+            else -> if (group.startsWith("project:")) days.indexOfFirst { it.unscheduled } else days.indexOfFirst { it.date == group }
+        }
+        if (isTodo) {
+            daySpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, days)
+            if (originalDay >= 0) daySpinner.setSelection(originalDay)
+        } else {
+            findViewById<View>(R.id.day_label).visibility = View.GONE
+            daySpinner.visibility = View.GONE
+        }
         if (!isTodo) {
             val close = findViewById<Button>(R.id.close_issue)
             close.visibility = View.VISIBLE
@@ -133,7 +156,9 @@ class EditItemActivity : Activity() {
             val tag = group.findViewById<RadioButton>(group.checkedRadioButtonId)?.let { tags[it.tag as Int] }
             val retag = isTodo && tag != null && !isCurrent(tag, currentPersonal, currentRole)
             val doneChanged = isTodo && doneBox.isChecked != originalDone
-            if (title == originalTitle && note.isEmpty() && !retag && !doneChanged) {
+            val newDay = days.getOrNull(daySpinner.selectedItemPosition)
+            val dayChanged = isTodo && newDay != null && daySpinner.selectedItemPosition != originalDay
+            if (title == originalTitle && note.isEmpty() && !retag && !doneChanged && !dayChanged) {
                 finish()
                 return@setOnClickListener
             }
@@ -157,6 +182,14 @@ class EditItemActivity : Activity() {
                     }
                     if (note.isNotEmpty()) Ready.post(this, "$path/notes", JSONObject().put("body", note))
                     if (doneChanged) Ready.patch(this, path, JSONObject().put("done", doneBox.isChecked))
+                    if (dayChanged && newDay != null) {
+                        val move = if (newDay.unscheduled) {
+                            JSONObject().put("unscheduled", true)
+                        } else {
+                            JSONObject().put("planned_date", newDay.date ?: JSONObject.NULL)
+                        }
+                        Ready.patch(this, path, move)
+                    }
                     ReadyWidgetProvider.refresh(this)
                     runOnUiThread {
                         Toast.makeText(this, "Saved", Toast.LENGTH_SHORT).show()
