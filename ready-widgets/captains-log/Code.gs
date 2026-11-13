@@ -51,7 +51,8 @@ function doGet() {
 
 function sheet_() {
   const book = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = book.getSheetByName(SHEET_NAME);
+  let sheet = book.getSheetByName(SHEET_NAME) ||
+    book.getSheets().find((s) => String(s.getRange('A1').getValue()) === 'When');
   if (!sheet) {
     sheet = book.insertSheet(SHEET_NAME, 0);
     sheet.appendRow(['When', 'Entry', 'Source', 'Id']);
