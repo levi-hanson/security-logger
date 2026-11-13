@@ -3,4 +3,6 @@
     <string name="app_name">Ready Widgets</string>
     <string name="widget_name">Ready: to-dos &amp; issues</string>
     <string name="widget_description">Your Ready to-dos and issues, with quick add</string>
+    <string name="log_shortcut_short">Captain\'s log</string>
+    <string name="log_shortcut_long">Record a captain\'s log entry</string>
 </resources>

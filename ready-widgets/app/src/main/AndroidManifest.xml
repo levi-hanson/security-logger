@@ -7,6 +7,15 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <!-- In-app updates from the GitHub release; see Updater. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Captain's log: voice entries; see RecordLogActivity. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Lets SpeechRecognizer find the phone's speech service (Android 11+ package visibility). -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
 
     <application
         android:allowBackup="false"
@@ -30,7 +39,39 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="com.daxbot.readywidgets" />
             </intent-filter>
+            <!-- Long-press the app icon: "Captain's log". -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
+
+        <!-- Shows over the lock screen, so the quick-settings tile works without unlocking. -->
+        <activity
+            android:name=".RecordLogActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:taskAffinity="com.daxbot.readywidgets.log"
+            android:theme="@style/Theme.Ready.Dialog"
+            android:turnScreenOn="true"
+            android:windowSoftInputMode="adjustResize" />
+
+        <service
+            android:name=".LogTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_mic"
+            android:label="Captain's log"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".LogSyncJob"
+            android:exported="true"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
 
         <activity
             android:name=".AddTodoActivity"

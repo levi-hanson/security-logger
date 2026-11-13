@@ -128,6 +128,7 @@ class ReadyWidgetProvider : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget)
 
             views.setOnClickPendingIntent(R.id.title_area, activityIntent(context, SetupActivity::class.java, 10))
+            views.setOnClickPendingIntent(R.id.btn_log, activityIntent(context, RecordLogActivity::class.java, 17))
             views.setOnClickPendingIntent(R.id.btn_add_todo, activityIntent(context, AddTodoActivity::class.java, 11))
             views.setOnClickPendingIntent(R.id.btn_add_issue, activityIntent(context, AddIssueActivity::class.java, 12))
             views.setOnClickPendingIntent(R.id.btn_refresh, broadcast(context, ACTION_REFRESH, 13))

@@ -43,6 +43,34 @@ collapsible sections, with buttons to add a to-do or raise an issue.
 
 Needs Android 12 or newer.
 
+## Captain's log
+
+Voice log entries that land in a Google Sheet, one row each.
+
+- **Record:** tap the **Captain's log** quick-settings tile (pull down from the top of the
+  screen; it works on the lock screen without unlocking), the **🎙** button on the widget,
+  or long-press the app icon → **Captain's log**. Speak, then tap **Stop & save**. Leaving
+  the screen also saves what was heard; **Discard** throws it away.
+- Android's speech recognizer pauses after a few seconds of quiet; the app restarts it until
+  you tap Stop, so you may hear a short tone between stretches.
+- **No signal:** entries wait on the phone and send themselves once there's a connection
+  (`LogSyncJob`). The settings screen shows how many are waiting, with **Send waiting entries**.
+- Each entry carries an id, and the sheet skips an id it already has, so a resend never
+  adds a duplicate row.
+
+### Set up the sheet (once)
+
+1. Make a Google Sheet (for example "Captain's Log").
+2. In it, open **Extensions → Apps Script**, replace the contents with
+   [`captains-log/Code.gs`](captains-log/Code.gs), and save.
+3. **Deploy → New deployment**, type **Web app**, *Execute as* **Me**, *Who has access*
+   **Anyone**. Authorize it when asked, then copy the **Web app URL** (ends in `/exec`).
+4. In the Ready Widgets app, under **Captain's log**, paste the URL and tap **Save address**.
+   Tap **Add the quick-settings tile** to put the tile in quick settings.
+
+The first entry creates a **Log** tab with When · Entry · Source columns. Anyone with the
+web app URL can add rows to it, so keep the URL to yourself.
+
 ## Install
 
 1. On your phone, open this repo's **Releases** and find the `Ready Widgets (<branch>)`

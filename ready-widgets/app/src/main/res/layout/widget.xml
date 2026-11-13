@@ -41,6 +41,11 @@
         </LinearLayout>
 
         <TextView
+            android:id="@+id/btn_log"
+            style="@style/WidgetPill"
+            android:text="🎙" />
+
+        <TextView
             android:id="@+id/btn_add_todo"
             style="@style/WidgetPill"
             android:text="+ To-do" />
