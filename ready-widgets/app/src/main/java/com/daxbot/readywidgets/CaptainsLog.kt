@@ -87,6 +87,12 @@ object CaptainsLog {
         // Apps Script answers a POST with a redirect to its result, which OkHttp follows.
         Ready.http.newCall(request).execute().use { response ->
             val body = response.body?.string().orEmpty()
+            if (response.code == 401 || response.code == 403) {
+                throw IOException(
+                    "The sheet asked for a Google sign-in (${response.code}). Use the deployment's /exec address " +
+                        "(not /dev), with \"Who has access\" set to \"Anyone\".",
+                )
+            }
             if (!response.isSuccessful) throw IOException("The sheet answered ${response.code}")
             val json = try { JSONObject(body) } catch (e: Exception) {
                 throw IOException("The sheet didn't answer as expected. Deploy its web app with access set to \"Anyone\".")
